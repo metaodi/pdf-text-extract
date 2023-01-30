@@ -19,6 +19,7 @@ import traceback
 import sys
 import os
 import PyPDF2
+import pandas as pd
 from docopt import docopt
 import download as dl
 
@@ -46,15 +47,36 @@ if pdf_path:
     reader = PyPDF2.PdfReader(pdf_path)
 
 texts = []
-for page in reader.pages:
-    text = page.extract_text()
+
+def visitor_body(text, cm, tm, font_dict, font_size):
+    from pprint import pprint
+    data = {
+        'font_size': font_size,
+        'text': text,
+        'text_length': len(text),
+        'cm': cm,
+        'tm': tm,
+    }
+    data.update(font_dict)
+    pprint(data)
+    print("")
+
     texts.append(text)
+
+
+for page in reader.pages:
+    page.extract_text(visitor_text=visitor_body)
+    #texts.append(text)
+
+df_text = pd.DataFrame(texts)
+df_agg = df_text.groupby(['font_size', '/Font']).agg(text_sum=('text_length', 'sum'))
+print(df_agg)
 
 outfile = arguments['--out']
 if outfile:
     with open(outfile, 'w') as o:
-        o.write("\n".join(texts))
+        o.write("".join([t['text'] for t in texts]))
 else:
-    sys.stdout.write("\n".join(texts))
+    sys.stdout.write("".join([t['text'] for t in texts]))
     sys.stdout.flush()
 
